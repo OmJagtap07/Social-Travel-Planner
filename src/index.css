@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-slate-50 font-sans antialiased;
+}
+
+/* Custom shadow for the search widget */
+.search-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
