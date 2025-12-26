@@ -20,23 +20,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
         </h1>
       </div>
 
-      {/* 2. Search Bar */}
-      <form onSubmit={handleSubmit} className="hidden md:flex flex-1 max-w-lg mx-8">
-        <div className="relative w-full group">
-          <input
-            type="text"
-            className="w-full bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-orange-100 focus:border-orange-300 rounded-full py-2.5 px-12 transition-all outline-none text-gray-700"
-            placeholder="Search places (e.g. Tokyo, Japan)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="absolute left-4 top-3 text-gray-400 group-focus-within:text-orange-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-      </form>
+      
 
       {/* 3. User Section */}
       <div className="flex items-center space-x-6">

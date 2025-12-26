@@ -1,23 +1,82 @@
 import React from 'react';
-import SpecialDeals from './SpecialDeals'; // Reusing your existing grid component!
+import SpecialDeals from './SpecialDeals'; 
 
 const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) => {
   
-  // 1. MOCK DATA for the "Overview" Section
-  // In a real app, you would fetch this from an API based on destinationName
-  const destinationData = {
-    name: destinationName || "Japan",
-    country: "East Asia",
-    tagline: "Explore trips, experiences, and plans created by your network.",
-    coverImage: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?q=80&w=2000", // Japan Image
-    friendsVisiting: 4,
-    friendsPlanning: 2,
-    posts: [
-      "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400",
-      "https://images.unsplash.com/photo-1528164344705-47542687000d?w=400",
-      "https://images.unsplash.com/photo-1526481280693-3bfa7568e0f3?w=400"
-    ]
+  // --- 1. THE MOCK DATABASE (Add your new places here!) ---
+  const destinationsDB = {
+    "japan": {
+      name: "Japan",
+      country: "East Asia",
+      tagline: "Land of the Rising Sun, sushi, and cherry blossoms.",
+      coverImage: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?q=80&w=2000",
+      friendsVisiting: 4,
+      friendsPlanning: 2,
+      posts: [
+        "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400",
+        "https://images.unsplash.com/photo-1528164344705-47542687000d?w=400",
+        "https://images.unsplash.com/photo-1526481280693-3bfa7568e0f3?w=400"
+      ]
+    },
+    "new york": {
+      name: "New York",
+      country: "USA",
+      tagline: "The city that never sleeps. Explore the concrete jungle.",
+      coverImage: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=2000",
+      friendsVisiting: 12,
+      friendsPlanning: 5,
+      posts: [
+        "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=400",
+        "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?w=400",
+        "https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=400"
+      ]
+    },
+    "goa": {
+      name: "Goa",
+      country: "India",
+      tagline: "Sun, Sand, and Spices. The ultimate party destination.",
+      coverImage: "https://images.unsplash.com/photo-1512453979798-5ea90b79158e?q=80&w=2000",
+      friendsVisiting: 8,
+      friendsPlanning: 10,
+      posts: [
+        "https://images.unsplash.com/photo-1589330273594-fade1ee91647?w=400", // Using general beach photos
+        "https://images.unsplash.com/photo-1590494165263-91b980006367?w=400",
+        "https://images.unsplash.com/photo-1544550581-5f7ceaf7f992?w=400"
+      ]
+    },
+    "paris": {
+      name: "Paris",
+      country: "France",
+      tagline: "The city of love, art, and fashion.",
+      coverImage: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2000",
+      friendsVisiting: 2,
+      friendsPlanning: 1,
+      posts: [
+        "https://images.unsplash.com/photo-1511739001486-6bfe10ce7859?w=400",
+        "https://images.unsplash.com/photo-1503917988258-f87a78e3c995?w=400",
+        "https://images.unsplash.com/photo-1499856871940-a09627c6d7db?w=400"
+      ]
+    },
+    // DEFAULT FALLBACK (If they search "Mars" or something we don't know)
+    "default": {
+      name: destinationName,
+      country: "Global Destination",
+      tagline: "Explore trips, experiences, and plans created by your network.",
+      coverImage: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2000",
+      friendsVisiting: 0,
+      friendsPlanning: 0,
+      posts: [
+         "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400",
+         "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400",
+         "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400"
+      ]
+    }
   };
+
+  // --- 2. SELECT THE RIGHT DATA ---
+  // We convert the search to lowercase (e.g. "Japan" -> "japan") to match keys
+  const searchKey = destinationName?.toLowerCase();
+  const data = destinationsDB[searchKey] || destinationsDB["default"];
 
   // Filter trips that match this destination (Case insensitive)
   const relatedTrips = allTrips.filter(t => 
@@ -31,9 +90,9 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
       {/* 🟢 SECTION 1: DESTINATION OVERVIEW (Cover) */}
       <div className="relative h-[400px] w-full">
         <img 
-          src={destinationData.coverImage} 
+          src={data.coverImage} 
           className="w-full h-full object-cover" 
-          alt={destinationData.name} 
+          alt={data.name} 
         />
         <div className="absolute inset-0 bg-black/40"></div>
         
@@ -48,10 +107,10 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
         {/* Title Content */}
         <div className="absolute bottom-10 left-8 md:left-16 text-white max-w-3xl">
           <span className="bg-orange-500 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2 inline-block">
-            Trending Destination
+            {data.country}
           </span>
-          <h1 className="text-5xl md:text-7xl font-black mb-2">{destinationData.name}</h1>
-          <p className="text-xl md:text-2xl font-medium opacity-90">{destinationData.tagline}</p>
+          <h1 className="text-5xl md:text-7xl font-black mb-2">{data.name}</h1>
+          <p className="text-xl md:text-2xl font-medium opacity-90">{data.tagline}</p>
         </div>
       </div>
 
@@ -74,8 +133,8 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
             <div>
               <h3 className="text-xl font-bold text-gray-900">Your network is active here!</h3>
               <p className="text-gray-600">
-                <span className="font-bold text-orange-600">{destinationData.friendsVisiting} friends</span> have visited • 
-                <span className="font-bold text-orange-600"> {destinationData.friendsPlanning}</span> planning a trip
+                <span className="font-bold text-orange-600">{data.friendsVisiting} friends</span> have visited • 
+                <span className="font-bold text-orange-600"> {data.friendsPlanning}</span> planning a trip
               </p>
             </div>
           </div>
@@ -85,17 +144,16 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
         </section>
 
         {/* 🟢 SECTION 3: TRIPS RELATED TO THIS DESTINATION */}
-        {/* We reuse the SpecialDeals component but pass filtered data! */}
         <div>
-          <h2 className="text-3xl font-black text-gray-900 mb-6">Available Plans for {destinationData.name}</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-6">Available Plans for {data.name}</h2>
           <SpecialDeals 
             trips={relatedTrips} 
             myFriends={myFriends} 
-            category="all" // Keeps the default layout
+            category="all" 
           />
           {relatedTrips.length === 0 && (
              <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-               <p className="text-gray-500">No public itineraries yet. <span className="text-orange-600 font-bold cursor-pointer">Be the first to create one!</span></p>
+               <p className="text-gray-500">No public itineraries found for {data.name} yet. <span className="text-orange-600 font-bold cursor-pointer">Be the first to create one!</span></p>
              </div>
           )}
         </div>
@@ -105,7 +163,7 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
           <div className="flex justify-between items-end mb-8">
             <div>
               <h2 className="text-3xl font-black text-gray-900">Experiences</h2>
-              <p className="text-gray-500">Captured moments from your circle.</p>
+              <p className="text-gray-500">Captured moments from your circle in {data.name}.</p>
             </div>
             <button className="text-orange-600 font-bold hover:underline">View all posts →</button>
           </div>
@@ -113,18 +171,18 @@ const DestinationDetails = ({ destinationName, onBack, allTrips, myFriends }) =>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[400px]">
             {/* Large item */}
             <div className="md:col-span-2 md:row-span-2 relative rounded-2xl overflow-hidden group cursor-pointer">
-               <img src={destinationData.posts[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+               <img src={data.posts[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="post 1"/>
                <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                 <img src="https://ui-avatars.com/api/?name=Rohan" className="w-8 h-8 rounded-full border border-white"/>
-                 <span className="text-white font-bold text-sm bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">Rohan in Kyoto</span>
+                 <img src="https://ui-avatars.com/api/?name=Rohan" className="w-8 h-8 rounded-full border border-white" alt="user"/>
+                 <span className="text-white font-bold text-sm bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">Rohan in {data.name}</span>
                </div>
             </div>
             {/* Smaller items */}
             <div className="relative rounded-2xl overflow-hidden group cursor-pointer">
-               <img src={destinationData.posts[1]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+               <img src={data.posts[1]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="post 2"/>
             </div>
             <div className="relative rounded-2xl overflow-hidden group cursor-pointer">
-               <img src={destinationData.posts[2]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+               <img src={data.posts[2]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="post 3"/>
             </div>
           </div>
         </section>
