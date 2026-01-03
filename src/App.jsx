@@ -12,6 +12,7 @@ import TripWizard from './Components/TripWizard';
 import Login from './Components/Login'; 
 import Features from './Components/Features';
 import DestinationDetails from './Components/DestinationDetails';
+import TripAssistant from './Components/TripAssistant';
 
 // FIREBASE IMPORTS
 import { auth, db, googleProvider, signInWithPopup, signOut, doc, setDoc } from './firebase';
@@ -234,6 +235,18 @@ function App() {
       <TripWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} />
 
       {/* Floating Button */}
+      {view !== "my-trips" && (
+        <button onClick={() => user ? setIsModalOpen(true) : setShowLogin(true)} className="fixed bottom-8 right-8 z-50 bg-white shadow-2xl rounded-full px-6 py-3 flex items-center space-x-2 border border-orange-100 hover:scale-105 transition-transform">
+          <span className="text-orange-500 font-bold">{user ? "✈️ Plan Your Trip" : "🔒 Login to Plan"}</span>
+        </button>
+      )}
+      {/* Modal with User Prop */}
+      <TripWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} />
+
+      {/* 🔥 NEW: AI TRAVEL ASSISTANT 🔥 */}
+      <TripAssistant />
+
+      {/* Floating Button (The existing one) */}
       {view !== "my-trips" && (
         <button onClick={() => user ? setIsModalOpen(true) : setShowLogin(true)} className="fixed bottom-8 right-8 z-50 bg-white shadow-2xl rounded-full px-6 py-3 flex items-center space-x-2 border border-orange-100 hover:scale-105 transition-transform">
           <span className="text-orange-500 font-bold">{user ? "✈️ Plan Your Trip" : "🔒 Login to Plan"}</span>
