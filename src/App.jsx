@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 
-// --- IMPORTS ---
+// --- 1. FIREBASE IMPORTS ---
+import { auth, db, googleProvider, signInWithPopup, signOut } from './firebase';
+import { onAuthStateChanged } from "firebase/auth";
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  setDoc, 
+  arrayUnion, 
+  onSnapshot, 
+  arrayRemove
+} from "firebase/firestore"; 
+
+// --- COMPONENT IMPORTS ---
 import Header from './Components/Header';
 import Hero from './Components/Hero';
 import Categories from './Components/Categories';
@@ -14,12 +29,6 @@ import Features from './Components/Features';
 import DestinationDetails from './Components/DestinationDetails';
 import TripAssistant from './Components/TripAssistant';
 
-// FIREBASE IMPORTS
-import { auth, db, googleProvider, signInWithPopup, signOut, doc, setDoc } from './firebase';
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, getDocs, deleteDoc } from "firebase/firestore"; 
-import "./index.css";
-
 function App() {
   // --- STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,13 +38,14 @@ function App() {
   const [view, setView] = useState("home");
   const [searchedDestination, setSearchedDestination] = useState("");
   
-  // NEW: State for User Trips
-  const [myTrips, setMyTrips] = useState([]);
-  const [loadingTrips, setLoadingTrips] = useState(false);
+  // 🔥 UNIFIED DATA STATE (Holds ALL trips from Firebase)
+  const [trips, setTrips] = useState([]); 
+  const [loading, setLoading] = useState(true);
 
-  // --- 1. AUTH LISTENER ---
+  // --- 1. INITIALIZE & FETCH DATA ---
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    // A. Auth Listener
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
           name: firebaseUser.displayName,
@@ -47,7 +57,25 @@ function App() {
         setUser(null);
       }
     });
-    return () => unsubscribe();
+
+    // B. Real-time Database Listener
+    const q = collection(db, "trips");
+    const unsubscribeTrips = onSnapshot(q, (snapshot) => {
+      const tripsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        img: doc.data().img || "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800",
+        tags: doc.data().tags || ["Community"],
+        members: doc.data().members || [] 
+      }));
+      setTrips(tripsData);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeTrips();
+    };
   }, []);
 
   // --- 2. HANDLERS ---
@@ -76,46 +104,18 @@ function App() {
     setView("home");
   };
 
-  // --- 3. FETCH USER TRIPS ---
-  const handleMyTripsClick = async () => {
-    if (!user) {
-      setShowLogin(true);
-      return;
-    }
-
-    setLoadingTrips(true);
-    setView("my-trips"); // Switch to My Trips view
-    
-    try {
-      // Query: Give me trips where 'creatorId' matches the logged-in user
-      const q = query(collection(db, "trips"), where("creatorId", "==", user.uid));
-      const querySnapshot = await getDocs(q);
-      
-      const userTrips = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          // IMPORTANT: Fallback image if the trip doesn't have one yet
-          img: data.img || "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800"
-        };
-      });
-
-      setMyTrips(userTrips);
-    } catch (error) {
-      console.error("Error fetching trips:", error);
-    } finally {
-      setLoadingTrips(false);
-    }
-  };
-
   const handleDeleteTrip = async (tripId) => {
-    if (window.confirm("Are you sure you want to delete this trip?")) {
+    // 1. Find the trip name for the message
+    const tripToDelete = trips.find(t => t.id === tripId);
+    const tripName = tripToDelete ? tripToDelete.location : "this trip";
+
+    // 2. Stronger Confirmation Message
+    if (window.confirm(`⚠️ WARNING: Are you sure you want to delete "${tripName}"?\n\nThis action cannot be undone and all member data will be lost.`)) {
       try {
         await deleteDoc(doc(db, "trips", tripId));
-        setMyTrips(prev => prev.filter(trip => trip.id !== tripId));
       } catch (error) {
         console.error("Error deleting trip:", error);
+        alert("Could not delete. Check console.");
       }
     }
   };
@@ -126,38 +126,79 @@ function App() {
     window.scrollTo(0, 0); 
   };
   
-  // --- 4. MOCK DATA (For Home Page) ---
+  // --- JOIN / LEAVE TOGGLE LOGIC ---
+  const handleJoinTrip = async (tripId) => {
+    if (!user) {
+      alert("Please login to join this trip!");
+      setShowLogin(true);
+      return;
+    }
+
+    try {
+      const targetTrip = trips.find(t => t.id === tripId);
+      const isJoined = targetTrip?.members?.includes(user.uid);
+      const tripRef = doc(db, "trips", tripId);
+
+      if (isJoined) {
+        // 1. LEAVE LOGIC (If already joined, remove them)
+        if (window.confirm("Do you want to leave this trip? 😢")) {
+          await updateDoc(tripRef, {
+            members: arrayRemove(user.uid)
+          });
+          // No alert needed, UI updates instantly
+        }
+      } else {
+        // 2. JOIN LOGIC (If not joined, add them)
+        await updateDoc(tripRef, {
+          members: arrayUnion(user.uid)
+        });
+        // You can add a confetti effect here later if you want!
+      }
+      
+    } catch (error) {
+      console.error("Error updating trip:", error);
+      alert("Something went wrong. Try again.");
+    }
+  };
+
+  // --- FILTERING & MOCK DATA HELPERS ---
   const myFriends = ["Rohan", "Sarah", "Raj", "Simran", "Amit"];
   
-  const allTrips = [
-    { id: 1, name: "Andaman Group Trip", creator: "Rohan's Group", location: "ANDAMAN", budget: 65000, img: "https://images.unsplash.com/photo-1589330273594-fade1ee91647?q=80&w=600", members: ["Rohan", "Rahul", "Simran"], tags: ["Beach", "Relax"], avatar: "https://ui-avatars.com/api/?name=Rohan&background=random", dateRange: "Dec 20 - Dec 28" },
-    { id: 2, name: "Thailand Roadtrip", creator: "Sarah & Friends", location: "THAILAND", budget: 90000, img: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=600", members: ["Sarah", "Mike", "Jenny"], tags: ["Adventure", "Party"], avatar: "https://ui-avatars.com/api/?name=Sarah&background=random", dateRange: "Jan 10 - Jan 18" },
-    { id: 3, name: "Manali Solo", creator: "Piyush Jagtap", location: "MANALI", budget: 25000, img: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?q=80&w=600", members: ["Piyush"], tags: ["Solo", "Backpacking", "Nature"], avatar: "https://ui-avatars.com/api/?name=Piyush&background=0ea5e9&color=fff", dateRange: "Flexible Dates" },
-    { id: 4, name: "College Gang Goes Goa", creator: "College Gang", location: "GOA", budget: 8000, img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuzrClgpj5cu2eSZpwNv31CuJcSd1mIBlIMg&s", members: ["Raj", "Simran", "Amit", "Neha", "Pooja"], tags: ["Party", "Budget Friendly"], avatar: "https://ui-avatars.com/api/?name=College&background=random", dateRange: "Nov 12 - Nov 16" },
-    { id: 5, name: "Kashmir Trek", creator: "Amit Kumar", location: "KASHMIR", budget: 12000, img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSZ7Zq8VsFXo_g5rYlxWARpQXoVclMgYdhz_w&s", members: ["Amit"], tags: ["Trek", "Nature", "Adventure"], avatar: "https://ui-avatars.com/api/?name=Amit&background=random", dateRange: "Mar 1 - Mar 7" },
-    { id: 6, name: "Gujarat Exploration", creator: "Cultural Club", location: "GUJARAT", budget: 5000, img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVUdePkDD2k2rkE3LFuUmEPty8vNO4Z0z-aA&s", members: ["Ajay", "Vijay"], tags: ["Culture", "Road Trip"], avatar: "https://ui-avatars.com/api/?name=Culture&background=random", dateRange: "Feb 14 - Feb 18" },
-    { id: 7, name: "Tokyo Explorer", creator: "Japan Lovers", location: "JAPAN", budget: 120000, img: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?q=80&w=600", members: ["Rohan", "Amit"], tags: ["Culture", "City"], avatar: "https://ui-avatars.com/api/?name=Japan", dateRange: "Apr 5 - Apr 15" }
-  ];
-
-  // --- FILTERING ---
   const getFilteredTrips = () => {
+    let data = trips; 
+
+    // If viewing "My Trips", show trips I CREATED
+    if (view === "my-trips" && user) {
+        return trips.filter(t => t.creatorId === user.uid);
+    }
+
     switch(selectedCategory) {
-      case "friends": return allTrips.filter(trip => trip.members.some(member => myFriends.includes(member)));
-      case "solo": return allTrips.filter(trip => trip.members.length === 1);
-      case "group": return allTrips.filter(trip => trip.members.length >= 2);
-      case "budget": return allTrips.filter(trip => trip.budget <= 15000);
-      case "adventure": return allTrips.filter(trip => trip.tags.some(tag => ["Adventure", "Trek", "Nature", "Road Trip"].includes(tag)));
-      default: return allTrips;
+      case "friends": return data.filter(trip => trip.members && trip.members.some(member => myFriends.includes(member)));
+      case "solo": return data.filter(trip => trip.tags.includes("Solo"));
+      case "group": return data.filter(trip => trip.tags.includes("Party") || trip.members.length >= 2);
+      case "budget": return data.filter(trip => trip.tags.includes("Budget Friendly") || trip.budget <= 15000);
+      case "adventure": return data.filter(trip => trip.tags.some(tag => ["Adventure", "Trek", "Nature"].includes(tag)));
+      default: return data;
     }
   };
 
   const getSpotlightData = () => {
+    // Safety check: if trips haven't loaded yet, return null
+    if (trips.length === 0) return null;
+
+    // We try to find trips that match the vibe, or default to the first few
+    const friendsTrip = trips.find(t => t.tags.includes("Party")) || trips[0];
+    const soloTrip = trips.find(t => t.tags.includes("Solo")) || trips[1];
+    const budgetTrip = trips.find(t => t.tags.includes("Budget Friendly")) || trips[2];
+    const adventureTrip = trips.find(t => t.tags.includes("Adventure")) || trips[3];
+    const groupTrip = trips.find(t => t.members.length > 2) || trips[4];
+
     switch (selectedCategory) {
-      case 'friends': return { trip: allTrips[0], badgeText: "Friends Trip", subtitle: <span className="text-orange-300 font-bold">3 of your friends are part of this trip!</span>, extraInfo: <div className="flex -space-x-3 mt-2">{allTrips[0].members.map((m, i) => <img key={i} src={`https://ui-avatars.com/api/?name=${m}&background=random`} className="w-8 h-8 rounded-full border border-gray-900" alt={m}/>)}</div> };
-      case 'solo': return { trip: allTrips[2], badgeText: "Solo Adventure", subtitle: "Rated ⭐ 4.9/5 for Safety.", extraInfo: null };
-      case 'budget': return { trip: allTrips[3], badgeText: "Budget Steal", subtitle: "Save ₹5,000 compared to packages.", extraInfo: <span className="text-green-400 font-bold text-sm bg-green-900/50 px-2 py-1 rounded">💰 40% Cheaper</span> };
-      case 'adventure': return { trip: allTrips[4], badgeText: "Trending Trek", subtitle: "High demand! 12 people joined.", extraInfo: null };
-      case 'group': return { trip: allTrips[1], badgeText: "Group Bestseller", subtitle: "Private bus included.", extraInfo: null };
+      case 'friends': return { trip: friendsTrip, badgeText: "Friends Trip", subtitle: <span className="text-orange-300 font-bold">Trending in your network!</span>, extraInfo: null };
+      case 'solo': return { trip: soloTrip, badgeText: "Solo Adventure", subtitle: "Rated ⭐ 4.9/5 for Safety.", extraInfo: null };
+      case 'budget': return { trip: budgetTrip, badgeText: "Budget Steal", subtitle: "Save money compared to packages.", extraInfo: <span className="text-green-400 font-bold text-sm bg-green-900/50 px-2 py-1 rounded">💰 Best Value</span> };
+      case 'adventure': return { trip: adventureTrip, badgeText: "Trending Trek", subtitle: "High demand!", extraInfo: null };
+      case 'group': return { trip: groupTrip, badgeText: "Group Bestseller", subtitle: "Great for large teams.", extraInfo: null };
       default: return null;
     }
   };
@@ -165,24 +206,23 @@ function App() {
 
   // --- RENDER ---
   if (showLogin) return <Login onLogin={handleGoogleLogin} onBack={() => setShowLogin(false)} />;
+  
 
   return (
     <div className="min-h-screen bg-white">
       
-      {/* Header with My Trips Handler */}
       <Header 
         user={user} 
         onLoginClick={() => setShowLogin(true)} 
         onLogout={handleLogout}
-        onMyTripsClick={handleMyTripsClick} 
+        onMyTripsClick={() => setView("my-trips")} // Updated to just switch view
       />
       
-      {/* --- VIEW SWITCHER --- */}
       {view === "destination" ? (
         <DestinationDetails 
           destinationName={searchedDestination}
           onBack={() => setView("home")}
-          allTrips={allTrips}
+          allTrips={trips} // Pass real trips
           myFriends={myFriends}
           onPlanTrip={() => setIsModalOpen(true)}
         />
@@ -194,17 +234,16 @@ function App() {
             <h1 className="text-3xl font-black text-gray-900 mb-2">My Trips ✈️</h1>
             <p className="text-gray-500 mb-8">Itineraries you have created.</p>
 
-            {loadingTrips ? (
+            {loading ? (
               <div className="text-center py-20 text-gray-400 animate-pulse">Loading your adventures...</div>
-            ) : myTrips.length > 0 ? (
-               // Reuse your EXISTING SpecialDeals component!
-               // Note: We are passing 'onDelete', but if your reverted SpecialDeals component 
-               // doesn't have the delete logic yet, it will just ignore this prop. That is SAFE.
+            ) : getFilteredTrips().length > 0 ? (
                <SpecialDeals 
-                  trips={myTrips} 
+                  trips={getFilteredTrips()} 
                   myFriends={[]} 
                   category="my-trips" 
                   onDelete={handleDeleteTrip} 
+                  onJoin={handleJoinTrip}
+                  user={user}
                />
             ) : (
                <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
@@ -217,36 +256,34 @@ function App() {
          </div>
 
       ) : (
-        // --- HOME VIEW (Unchanged Logic) ---
+        // --- HOME VIEW ---
         <>
           <Hero onSearch={handleSearch} />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-30 space-y-16 pb-20">
              <Categories selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
              {selectedCategory === 'all' && <MapTeaser />}
-             {selectedCategory !== 'all' && <CategorySpotlight {...spotlightData} />}
-             <SpecialDeals trips={getFilteredTrips()} myFriends={myFriends} category={selectedCategory} />
+             {selectedCategory !== 'all' && spotlightData && <CategorySpotlight {...spotlightData} />}
+             
+             <SpecialDeals 
+                trips={getFilteredTrips()} 
+                myFriends={myFriends} 
+                category={selectedCategory} 
+                onDelete={handleDeleteTrip} 
+                onJoin={handleJoinTrip} 
+                user={user}
+             />
+             
              <TrendingDestinations />
              <Features />
           </div>
         </>
       )}
 
-      {/* Modal with User Prop */}
+      {/* MODALS & FLOATING BUTTONS */}
       <TripWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} />
-
-      {/* Floating Button */}
-      {view !== "my-trips" && (
-        <button onClick={() => user ? setIsModalOpen(true) : setShowLogin(true)} className="fixed bottom-8 right-8 z-50 bg-white shadow-2xl rounded-full px-6 py-3 flex items-center space-x-2 border border-orange-100 hover:scale-105 transition-transform">
-          <span className="text-orange-500 font-bold">{user ? "✈️ Plan Your Trip" : "🔒 Login to Plan"}</span>
-        </button>
-      )}
-      {/* Modal with User Prop */}
-      <TripWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} />
-
-      {/* 🔥 NEW: AI TRAVEL ASSISTANT 🔥 */}
+      
       <TripAssistant />
 
-      {/* Floating Button (The existing one) */}
       {view !== "my-trips" && (
         <button onClick={() => user ? setIsModalOpen(true) : setShowLogin(true)} className="fixed bottom-8 right-8 z-50 bg-white shadow-2xl rounded-full px-6 py-3 flex items-center space-x-2 border border-orange-100 hover:scale-105 transition-transform">
           <span className="text-orange-500 font-bold">{user ? "✈️ Plan Your Trip" : "🔒 Login to Plan"}</span>

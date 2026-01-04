@@ -1,30 +1,22 @@
 import React from 'react';
 
-// Added 'onDelete' prop
-const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
+const SpecialDeals = ({ trips, myFriends, category, onDelete, onJoin, user }) => {
   
-  // --- SMART LAYOUT DETECTOR ---
-  // This ensures that even in "All Trips" or "My Trips", 
-  // a Solo trip still looks like a Solo trip (not generic).
   const getLayoutType = (trip) => {
-    // 1. If user selected a specific filter button, respect it.
     if (category !== 'all' && category !== 'my-trips') return category;
-
-    // 2. Otherwise, auto-detect the best layout based on tags/data
     const tags = trip.tags || [];
     if (tags.includes('Solo')) return 'solo';
     if (tags.includes('Budget Friendly') || trip.budget <= 10000) return 'budget';
     if (tags.some(t => ['Adventure', 'Trek'].includes(t))) return 'adventure';
     if (tags.includes('Party') || (trip.members && trip.members.length > 3)) return 'group';
-    
-    // 3. Default fallback
     return 'friends';
   };
 
-  // This function decides exactly what to render inside the card footer
   const renderCardContent = (trip) => {
     const layoutType = getLayoutType(trip);
     const tripTags = trip.tags || [];
+    // Helper to check if joined
+    const isJoined = trip.members?.includes(user?.uid);
 
     // ------------------------------------------
     // 2️⃣ SOLO PLANS LAYOUT
@@ -43,9 +35,22 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
           </div>
           <div className="mt-3 flex justify-between items-end border-t border-white/20 pt-2">
              <span className="text-xl font-bold">₹{(trip.budget || 0).toLocaleString()}</span>
-             <button className="text-xs bg-white text-black px-3 py-1.5 rounded-full font-bold hover:bg-gray-200">
-               Join Solo
-             </button>
+             <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin(trip.id);
+                }}
+                // Added 'group' and hover effects
+                className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all group ${
+                  isJoined 
+                    ? "bg-green-500 text-white hover:bg-red-600" // Turns red on hover
+                    : "bg-white text-black hover:bg-gray-200"
+                }`}
+              >
+                {/* Change text on hover using CSS logic is hard in inline React, 
+                    so we stick to a simpler visual cue: Green -> Red */}
+                {isJoined ? "Joined ✓ (Leave)" : "Join Solo"}
+              </button>
           </div>
         </div>
       );
@@ -68,9 +73,19 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
              <div className="flex flex-col">
                 <span className="text-sm font-bold">₹{(trip.budget || 0).toLocaleString()}<span className="text-[10px] font-normal opacity-70">/person</span></span>
              </div>
-             <button className="text-xs bg-orange-600 text-white px-4 py-1.5 rounded-full font-bold hover:bg-orange-700">
-               Request Join
-             </button>
+             <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onJoin(trip.id);
+              }}
+              className={`text-xs px-4 py-1.5 rounded-full font-bold transition-all ${
+                isJoined 
+                ? "bg-green-600 text-white hover:bg-red-600" // Turns red on hover
+                : "bg-orange-600 text-white hover:bg-orange-700"
+              }`}
+            >
+              {isJoined ? "Joined ✓" : "Request Join"}
+            </button>
           </div>
         </div>
       );
@@ -95,8 +110,17 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
                 <p className="text-[10px] text-green-300 font-bold uppercase">Total Cost</p>
                 <p className="text-xl font-bold text-white">₹{(trip.budget || 0).toLocaleString()}</p>
              </div>
-             <button className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-green-600">
-               View Deal
+             {/* UPDATED BUTTON */}
+             <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin(trip.id);
+                }}
+                className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${
+                  isJoined ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"
+                }`}
+              >
+               {isJoined ? "Joined ✓" : "Grab Deal"}
              </button>
           </div>
         </div>
@@ -123,8 +147,17 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
              <span className="text-xs font-medium text-gray-300">
                {(trip.members || []).length === 1 ? "👤 Solo Expedition" : "👥 Group Expedition"}
              </span>
-             <button className="text-xs border border-white text-white px-3 py-1.5 rounded-full font-bold hover:bg-white hover:text-black transition-colors">
-               Explore
+             {/* UPDATED BUTTON */}
+             <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin(trip.id);
+                }}
+                className={`text-xs border border-white px-3 py-1.5 rounded-full font-bold transition-colors ${
+                  isJoined ? "bg-white text-black" : "text-white hover:bg-white hover:text-black"
+                }`}
+              >
+               {isJoined ? "Joined ✓" : "Explore"}
              </button>
           </div>
         </div>
@@ -152,8 +185,17 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
           
           <div className="flex flex-col items-end">
              <span className="text-lg font-bold">₹{(trip.budget || 0).toLocaleString()}</span>
-             <button className="text-[10px] bg-white text-black px-3 py-1 rounded-full font-bold hover:bg-gray-200 mt-1">
-              View Plan
+             {/* UPDATED BUTTON */}
+             <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin(trip.id);
+                }}
+                className={`text-[10px] px-3 py-1 rounded-full font-bold mt-1 transition-colors ${
+                  isJoined ? "bg-green-500 text-white" : "bg-white text-black hover:bg-gray-200"
+                }`}
+              >
+              {isJoined ? "Joined ✓" : "Join Trip"}
             </button>
           </div>
         </div>
@@ -161,7 +203,6 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
     );
   };
 
-  // --- RENDER COMPONENT ---
   return (
     <section className="py-8">
       <div className="mb-6 flex items-end justify-between">
@@ -186,17 +227,13 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
               key={trip.id} 
               className="relative group overflow-hidden rounded-2xl cursor-pointer shadow-md hover:shadow-xl transition-all h-full"
             >
-              {/* Image */}
               <img 
                 src={trip.img} 
                 alt={trip.location} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
-              
-              {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
 
-              {/* Creator Avatar (Top Left) */}
               <div className="absolute top-4 left-4 flex items-center space-x-2">
                 <img src={trip.avatar || `https://ui-avatars.com/api/?name=${trip.creatorName || 'User'}`} className="w-8 h-8 rounded-full border border-white" alt="user" />
                 <span className="text-white text-xs font-bold shadow-black drop-shadow-md bg-black/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
@@ -204,8 +241,6 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
                 </span>
               </div>
 
-              {/* 🔥 NEW: DELETE BUTTON (Top Right) 🔥 */}
-              {/* This only shows up if 'onDelete' is passed (e.g. on My Trips page) */}
               {onDelete && (
                 <button 
                   onClick={(e) => {
@@ -221,7 +256,6 @@ const SpecialDeals = ({ trips, myFriends, category, onDelete }) => {
                 </button>
               )}
 
-              {/* DYNAMIC FOOTER CONTENT */}
               {renderCardContent(trip)}
               
             </div>
