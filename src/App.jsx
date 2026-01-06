@@ -268,7 +268,6 @@ function App() {
                 trips={getFilteredTrips()} 
                 myFriends={myFriends} 
                 category={selectedCategory} 
-                onDelete={handleDeleteTrip} 
                 onJoin={handleJoinTrip} 
                 user={user}
              />
